@@ -3,10 +3,11 @@
 
 class Point {
     private:
-        int x{};
-        int y{};
+        int x;
+        int y;
 
     public:
+        Point();
         Point(int _x, int _y);
         void printCoordinates();
         int x_coord();
