@@ -10,6 +10,6 @@ class Point {
         Point();
         Point(int _x, int _y);
         void printCoordinates();
-        int x_coord();
-        int y_coord();
+        int x_coord() const;
+        int y_coord() const;
 };

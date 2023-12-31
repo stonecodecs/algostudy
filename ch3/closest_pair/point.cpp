@@ -12,10 +12,10 @@ void Point::printCoordinates() {
     std::cout << "(" << x << ", " << y << ") ";
 }
 
-int Point::x_coord() {
+int Point::x_coord() const {
     return x;
 }
 
-int Point::y_coord() {
+int Point::y_coord() const {
     return y;
 }
