@@ -14,7 +14,7 @@ std::vector<Point> createRandomSet(int n, int min=0, int max=100) {
 }
 
 int main(int argc, char** argv) {
-    std::vector<Point> set = createRandomSet(8, -20, 20);
+    std::vector<Point> set = createRandomSet(16, -100, 100);
 
     // temporary testing of sorting
     for (int i = 0; i < set.size(); ++i) {
@@ -22,27 +22,9 @@ int main(int argc, char** argv) {
         std::cout << ", ";
     }
 
-    std::vector<Point> sortedByX = sortPoints(set);
-    std::cout << "\n SORTED BY X: \n";
-
-    for (int i = 0; i < sortedByX.size(); ++i) {
-        sortedByX[i].printCoordinates();
-        std::cout << ", ";
-    }
-
-    std::vector<Point> sortedByY = sortPoints(set, false);
-    std::cout << "\n SORTED BY Y: \n";
-
-    for (int i = 0; i < sortedByY.size(); ++i) {
-        sortedByY[i].printCoordinates();
-        std::cout << ", ";
-    }
-
-    std::cout << "\n BACK TO ORIGINAL: \n";
-    for (int i = 0; i < set.size(); ++i) {
-        set[i].printCoordinates();
-        std::cout << ", ";
-    }
-
+    std::cout << "closest pair: "; 
+    std::tuple<Point, Point> pair = closestPair(set);
+    (std::get<0>(pair)).printCoordinates();
+    (std::get<1>(pair)).printCoordinates();
     return 0;
 }
