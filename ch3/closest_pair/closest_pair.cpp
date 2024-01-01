@@ -54,6 +54,30 @@ std::vector<Point> getPointsNearby(std::vector<Point> &set, int refPointIndex, i
     return points;
 }
 
+// some of the ugliest code written
+std::tuple<std::vector<Point>,std::vector<Point>,std::vector<Point>,std::vector<Point>> splitInputPointVectors(std::vector<Point> &a, std::vector<Point> &b) {
+    std::vector<Point> leftx(a.begin(), a.begin() + a.size() /2);   // left half, sorted on x
+    std::vector<Point> rightx(a.begin() + a.size() / 2, a.end());   // right half, sorted on x
+    std::vector<Point> lefty{};
+    std::vector<Point> righty{};
+    Point* maxLeft = &leftx[leftx.size() - 1];
+
+    for(int i = 0; i < b.size(); i++) {
+        if (b[i].x_coord() < maxLeft->x_coord()) {
+            lefty.push_back(b[i]);
+        } else if (b[i].x_coord() > maxLeft->x_coord()) {
+            righty.push_back(b[i]);
+        } else {
+            if (b[i].y_coord() <= maxLeft->y_coord()) {
+                lefty.push_back(b[i]);
+            } else { righty.push_back(b[i]); }
+        }
+    }
+
+    std::tuple<std::vector<Point>,std::vector<Point>,std::vector<Point>,std::vector<Point>> inputVectors{leftx, rightx, lefty, righty};
+    return inputVectors;
+}
+
 // preprocess
 std::tuple<Point, Point> closestPair(std::vector<Point> &set) {
     if (set.size() < 3) {
@@ -83,10 +107,7 @@ std::tuple<Point, Point> closestPair(
         return pair;
     }
 
-    std::vector<Point> leftx(a.begin(), a.begin() + a.size() /2);   // left half, sorted on x
-    std::vector<Point> lefty = sortPoints(leftx, false);            // leftx sorted on y
-    std::vector<Point> rightx(a.begin() + a.size() / 2, a.end());   // right half, sorted on x
-    std::vector<Point> righty = sortPoints(rightx, false);          // rightx sorted on y
+    auto [leftx, rightx, lefty, righty] = splitInputPointVectors(a, b);
 
     std::tuple<Point, Point> leftPair  = closestPair(leftx, lefty);
     std::tuple<Point, Point> rightPair = closestPair(rightx, righty);
@@ -101,11 +122,11 @@ std::tuple<Point, Point> closestPair(
         if(right_d2 < split_d2) { return rightPair; } else { return splitPair; }}
 }
 
-std::tuple<Point, Point> closestPairSplit(
-    std::vector<Point> &a, 
-    std::vector<Point> &b, 
-    float dist)
-{
-    int largest_x = a[a.size() - 1].x_coord();
+// std::tuple<Point, Point> closestPairSplit(
+//     std::vector<Point> &a, 
+//     std::vector<Point> &b, 
+//     float dist)
+// {
+//     int largest_x = a[a.size() - 1].x_coord();
 
-}
+// }
