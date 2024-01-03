@@ -11,6 +11,7 @@ std::vector<int> _quicksort(std::vector<int> &set, int start, int end, PivotSele
     
     set = selectPivot(set, start, end, ps); // swaps pivot to 'start,'
     int pivotIndex {partition(set, start, end)}; // partition set around pivot
+
     // d&c
     std::vector<int> left  = _quicksort(set, start, pivotIndex, ps);
     std::vector<int> right = _quicksort(set, pivotIndex + 1, end, ps);
@@ -18,9 +19,9 @@ std::vector<int> _quicksort(std::vector<int> &set, int start, int end, PivotSele
 }
 
 void swap(std::vector<int> &set, int index1, int index2) {
-    if (index1 < 0 || index2 > set.size()) { throw std::runtime_error("Index out of bounds error. Can't swap."); }
+    if (index1 < 0 || index2 >= set.size()) { throw std::runtime_error("Index out of bounds error. Can't swap."); }
     if (index1 == index2) { return; } // do nothing
-    int temp = set[index1];
+    int temp {set[index1]};
     set[index1] = set[index2];
     set[index2] = temp;
 }
@@ -51,10 +52,23 @@ int rng(int min, int max) {
 }
 
 std::vector<int> selectPivot(std::vector<int> &set, int start, int end, PivotSelector ps) {
+    std::vector<int> sorted3;
+    int mid;
     switch (ps) 
     {
     case PivotSelector::RANDOM:
-        swap(set, 0, rng(start, end - 1));
+        swap(set, start, rng(start, end - 1));
+        break;
+    case PivotSelector::LAST:
+        swap(set, end - 1, start);
+        break;
+    case PivotSelector::MEDIANS:
+        mid = start + ((end - start)/2);
+        sorted3 = {start, mid, end - 1};
+        std::sort(sorted3.begin(), sorted3.end(), [set](int a, int b) {
+            return set[a] <= set[b];
+        });
+        swap(set, sorted3[1], start); // get middle index of sorted, swap with start
         break;
     default:
         // leave as is
@@ -62,4 +76,12 @@ std::vector<int> selectPivot(std::vector<int> &set, int start, int end, PivotSel
     }
 
     return set;
+}
+
+void printVector(const std::vector<int>& vec) {
+    std::cout << "Vector elements: ";
+    for (const auto& element : vec) {
+        std::cout << element << " ";
+    }
+    std::cout << "\n";
 }
