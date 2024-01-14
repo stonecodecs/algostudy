@@ -34,6 +34,7 @@ class Graph {
         // algos:
         std::vector<int> bfs(int s);
         std::vector<int> augmented_bfs(int s);
+        std::vector<int> UCC(); // connected components
         std::vector<int> dfs(int s);
         std::vector<std::vector<int>> kosaraju();
         std::vector<std::tuple<int,int>> dijkstra();
@@ -175,13 +176,65 @@ std::vector<int> Graph<T>::_augmented_bfs( std::vector<bool>& visited,
     return _augmented_bfs(visited, q, dists);
 }
 
-// // depth first search
-// // returns order of vertex ids in dfs
-// std::vector<int> dfs(int s) {
+template <typename T>
+std::vector<int> Graph<T>::UCC() {
+    std::vector<int> cc(vertices.size(), 0);
+    std::vector<bool> visited(vertices.size(), false);
+    int currCC{0};
 
-// }
+    for(int i = 0; i < vertices.size(); i++) {
+        if (!visited[i]){
+            std::queue<int> q{};
+            q.push(i);
+            visited[i] = true;
+            currCC++;
 
-// // returns SCCs with their vector indices contained in them
+            while (!q.empty()) {
+                int v {q.front()};
+                q.pop();
+                visited[v] = true;
+                cc[v] = currCC;
+                for(auto it = adjList[v].begin(); it != adjList[v].end(); it++) {
+                    if (!visited[it->first]) {
+                        q.push(it->first);  
+                        visited[it->first] = true;
+                    }       
+                }
+            }
+        }
+    }
+    return cc;
+}
+
+// depth first search
+// returns order of vertex ids in dfs
+template <typename T>
+std::vector<int> Graph<T>::dfs(int s) {
+    // done iteratively to switch things up
+    std::vector<int> dfs_order{};
+    std::vector<bool> visited(vertices.size(), false);
+    std::stack<int> stack;
+    stack.push(s);
+
+    while(!stack.empty()) {
+        int v {stack.top()};
+        stack.pop();
+        
+        visited[v] = true;
+        dfs_order.push_back(v);
+
+        for(auto it = adjList[v].begin(); it != adjList[v].end(); it++) {
+            if (!visited[it->first]) {
+                stack.push(it->first);
+                visited[it->first] = true;
+            }       
+        }
+    }
+
+    return dfs_order;
+}
+
+// returns SCCs with their vector indices contained in them
 // std::vector<std::vector<int>> kosaraju() {
 
 // }

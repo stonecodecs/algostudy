@@ -37,5 +37,16 @@ int main(int argc, char** argv) {
     std::vector<int> distsFromAugmentedBFS = g.augmented_bfs(0);
     printVector(distsFromAugmentedBFS);
 
+    std::vector<int> orderOfDFS = g.dfs(0);
+    printVector(orderOfDFS);
+
+    g.addNode('f'); // vert6
+    g.addNode('g'); // vert7
+    g.addEdge(6,7);
+
+    g.printAdjList();
+
+    printVector(g.UCC());
+    
     return 0;
 }
