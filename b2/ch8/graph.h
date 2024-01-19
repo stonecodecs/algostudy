@@ -5,6 +5,7 @@
 #include<tuple>
 #include<limits.h>
 #include<unordered_map>
+#include<unordered_set>
 #include<queue>
 #include<stack>
 
@@ -22,9 +23,12 @@ class Graph {
         std::vector<int> _augmented_bfs( std::vector<bool>& visited,
                                          std::queue<int>& q,
                                          std::vector<int>& dists );
+        std::vector<int> _toposort(std::vector<bool>& visited, std::vector<int>& labels, int& currLabel, int s);
+        std::vector<int> dfs_scc(std::vector<bool>& visited, std::vector<int>& SCCgroups, int& currSCC, int v);
     public:
         Graph(bool directed=false, bool weighted=false);
         ~Graph();
+        void matrixToGraph(std::vector<std::vector<T>> m);
         void addNode(T val);
         Node<T>* getNode(int id);
         bool addEdge(int v, int w, int weight=1);
@@ -32,13 +36,15 @@ class Graph {
         void printAdjList();
 
         // algos:
+        // should be outside class, but yolo
         std::vector<int> bfs(int s);
         std::vector<int> augmented_bfs(int s);
         std::vector<int> UCC(); // connected components
         std::vector<int> dfs(int s);
-        std::vector<std::vector<int>> kosaraju();
-        std::vector<std::tuple<int,int>> dijkstra();
-        std::vector<std::tuple<int,int>> dijkstra_primitive();
+        std::vector<int> toposort();
+        Graph<T> reversedGraph(); // produces G-rev for kosaraju
+        std::vector<int> kosaraju();
+        std::vector<int> dijkstra(int s); // RETURN to this for HEAP-based for better performance (and prob9.7)
 };
 
 template <typename T>
@@ -52,6 +58,20 @@ template <typename T>
 Graph<T>::~Graph() {
     for (Node<T>* node : vertices) {
         delete node;
+    }
+}
+
+template <typename T>
+void Graph<T>::matrixToGraph(std::vector<std::vector<T>> m) {
+    adjList.clear();
+    for(int i = 0; i < m.size(); i++) { addNode(i); }
+
+    for(int i = 0; i < m.size(); i++) {
+        for(int j = 0; j < m[i].size(); j++) {
+            if(m[i][j]) { // edge exists
+                addEdge(i, j);
+            }
+        }
     }
 }
 
@@ -234,19 +254,138 @@ std::vector<int> Graph<T>::dfs(int s) {
     return dfs_order;
 }
 
-// returns SCCs with their vector indices contained in them
-// std::vector<std::vector<int>> kosaraju() {
+// returns vertices in topological ordering where index refers to order, toposort[index] refers to vertex
+// ONLY works for directed **acyclic** graphs
+// otherwise, there is no topological ordering and should throw an exception
+template <typename T>
+std::vector<int> Graph<T>::toposort() {
+    std::vector<bool> visited(vertices.size(),false);
+    std::vector<int> labels(vertices.size(), -1);
 
-// }
+    int currLabel = vertices.size() - 1;
+    for (int i = 0; i < vertices.size(); i++) {
+        if(!visited[i]) {
+            _toposort(visited, labels, currLabel, i);
+        }
+    }
 
-// // 
-// std::vector<std::tuple<int,int>> dijkstra_primitive() {
+    return labels;
+}
 
-// }
+template <typename T>
+std::vector<int> Graph<T>::_toposort(std::vector<bool>& visited, std::vector<int>& labels, int& currLabel, int s) {
+    visited[s] = true;
+    for(auto it = adjList[s].begin(); it != adjList[s].end(); it++) {
+        if (!visited[it->first]) {
+            visited[it->first] = true;
+            _toposort(visited, labels, currLabel, it->first);
+        }
+    }
+    labels[currLabel--] = s;
+    return labels;
+}
 
-// std::vector<std::tuple<int,int>> dijkstra() {
+// // returns SCCs with their vector indices contained in them
+template <typename T>
+std::vector<int> Graph<T>::kosaraju() {
+    Graph<T> rev = reversedGraph();
+    std::vector<bool> visited(vertices.size(), false);
+    std::vector<int> sccgroups(vertices.size(), -1);
+    // toposort on rev to find order (increasing) to start @ sink SCC node
+    std::vector<int> orderExtractedFromRev = rev.toposort();
+    int numSCCs{0};
 
-// }
+    for (int v : orderExtractedFromRev) {
+        if(!visited[v]) {
+            numSCCs++; // min val = 1
+            dfs_scc(visited, sccgroups, numSCCs, v);
+        }
+    }
+    return sccgroups;
+}
 
+template <typename T>
+std::vector<int> Graph<T>::dfs_scc(std::vector<bool>& visited, std::vector<int>& SCCgroups, int& currSCC, int v) {
+    visited[v] = true;
+    SCCgroups[v] = currSCC;
+    for(auto it = adjList[v].begin(); it != adjList[v].end(); it++) {
+        if (!visited[it->first]) {
+            visited[it->first] = true;
+            SCCgroups = dfs_scc(visited, SCCgroups, currSCC, it->first);
+        }
+    }
+
+    return SCCgroups;
+}
+
+template <typename T>
+Graph<T> Graph<T>::reversedGraph() {
+    // brute force "create new graph"
+    Graph<T> rev(isDirected, isWeighted);
+
+    for (int i = 0; i < vertices.size(); ++i) {
+        rev.addNode(vertices[i]->getData());
+    }
+
+    for (int i = 0; i < adjList.size(); ++i) {
+        for (const auto& pair : adjList[i]) {
+            int neighbor = pair.first;
+            int weight = pair.second;
+
+            rev.addEdge(neighbor, i, weight);
+        }
+    }
+    return rev;
+}
+
+
+// returns shortest path from some vertex s
+template <typename T>
+std::vector<int> Graph<T>::dijkstra(int s) {
+    std::vector<int> lens(vertices.size(), INT_MAX);                  // results; unconnected vertices will not be processed
+    std::unordered_set<int> set{};                                    // lookup vertices in X 
+    std::vector<std::tuple<int,int>> localEdges{};
+    bool edgesLeft{true};
+
+    lens[s] = 0;
+    set.insert(s);
+    
+    int v = s;
+    while(true) {
+
+        for(auto it = adjList[v].begin(); it != adjList[v].end(); it++) {
+            if (set.find(it->first) == set.end()) { // not processed in X yet
+                // set up d-score list
+                localEdges.push_back(std::make_tuple(it->first, lens[v] + it->second));
+            }
+        }
+
+        // find smallest, include w* into X, remove/ignore other d-score edges pointing to w*
+        // this is where we add heap
+        int minScoreVertex{-1};
+        int minScore{INT_MAX};
+
+        for(int i = 0; i < localEdges.size(); i++) {
+            // ignore those not in X (very inefficent)
+            if(set.find(std::get<0>(localEdges[i])) == set.end() && std::get<1>(localEdges[i]) < minScore) {
+                minScore = std::get<1>(localEdges[i]);
+                minScoreVertex = std::get<0>(localEdges[i]);
+
+            }
+        }
+
+        if (minScoreVertex < 0) {
+            break;
+        }
+
+        lens[minScoreVertex] = minScore;
+        set.insert(minScoreVertex); // add into set X
+        // if(indexToRemove > -1)
+        // // localEdges.erase(localEdges.begin() + indexToRemove); // erase from localEdges
+        v = minScoreVertex;
+    }
+
+    return lens;
+}
 
 #endif
