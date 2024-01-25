@@ -31,48 +31,71 @@ void print2DVector(const std::vector<T>& vec) {
 #ifdef GTEST_ENABLED
 
 TEST(HeapTests, HeapInsert) {
-    Heap<char> a_heap = Heap<char>::heapify({
-        std::make_tuple(2,'a'),
-        std::make_tuple(8,'b'),
-        std::make_tuple(3,'d'),
-        std::make_tuple(4,'e'),
-        std::make_tuple(1,'c')
+    std::vector<char> initialOrder = {'a', 'b', 'd', 'e', 'c'};
+    Heap<char*> a_heap = Heap<char*>::heapify({
+        std::make_tuple(2, &initialOrder[0]),
+        std::make_tuple(8, &initialOrder[1]),
+        std::make_tuple(3, &initialOrder[2]),
+        std::make_tuple(4, &initialOrder[3]),
+        std::make_tuple(1, &initialOrder[4])
     });
 
-    char top{};
+    std::tuple<int, char*> top{};
     std::vector<char> correctOrder = {'c', 'a', 'd', 'e', 'b'};
 
     for(int i = 0; i < a_heap.size(); i++) {
         top = a_heap.extractTop();
-        EXPECT_EQ(correctOrder[i], top);
+        EXPECT_EQ(correctOrder[i], *(std::get<1>(top)));
     }
-
-
 }
 
 TEST(HeapTests, HeapRemove) {
-    Heap<char> a_heap = Heap<char>::heapify({
-        std::make_tuple(2,'a'),
-        std::make_tuple(8,'b'),
-        std::make_tuple(3,'d'),
-        std::make_tuple(4,'e'),
-        std::make_tuple(1,'c')
+    std::vector<char> initialOrder = {'a', 'b', 'd', 'e', 'c'};
+    Heap<char*> a_heap = Heap<char*>::heapify({
+        std::make_tuple(2, &initialOrder[0]),
+        std::make_tuple(8, &initialOrder[1]),
+        std::make_tuple(3, &initialOrder[2]),
+        std::make_tuple(4, &initialOrder[3]),
+        std::make_tuple(1, &initialOrder[4])
     });
 
-    char top{};
-    std::vector<char> correctOrder = {'c', 'e', 'b'};
-    a_heap.remove(2);
-    a_heap.remove(3);
+    std::tuple<int, char*> top{};
+    std::vector<char> correctOrder = {'c', 'b'};
+    a_heap.remove(&initialOrder[0]);
+    a_heap.remove(&initialOrder[2]);
+    a_heap.remove(&initialOrder[3]);
     for(int i = 0; i < a_heap.size(); i++) {
         top = a_heap.extractTop();
-        EXPECT_EQ(correctOrder[i], top);
+        EXPECT_EQ(correctOrder[i], *(std::get<1>(top)));    // warning: arbitrary order (may be [c,b] or [b,c])
     }
 }
+
+TEST(GraphTests, DijkstraTest) {
+    Graph<char> djk_g(true, true);
+    std::vector<int> expected0 {0,1,3,6};
+    std::vector<int> expected1 {INT_MAX,0,2,5};
+    djk_g.addNode('s');
+    djk_g.addNode('v');
+    djk_g.addNode('w');
+    djk_g.addNode('t');
+
+    djk_g.addEdge(0, 1, 1);
+    djk_g.addEdge(0, 2, 4);
+    djk_g.addEdge(1, 2, 2);
+    djk_g.addEdge(1, 3, 6);
+    djk_g.addEdge(2, 3, 3);
+
+    ASSERT_EQ(expected0, djk_g.dijkstra(0));
+    ASSERT_EQ(expected1, djk_g.dijkstra(1));
+
+
+}
+
 
 #endif
 
 int main(int argc, char** argv) {
-
+#ifndef GTEST_ENABLED
     // Graph<char> undirected_g = Graph<char>();
     // Graph<char> directed_g   = Graph<char>(true);
 
@@ -142,24 +165,27 @@ int main(int argc, char** argv) {
     // dg_forSCCs.matrixToGraph(test);
     // print2DVector(test);
 
-    // Graph<char> djk_g(true, true);
-    // djk_g.addNode('s');
-    // djk_g.addNode('v');
-    // djk_g.addNode('w');
-    // djk_g.addNode('t');
+    Graph<char> djk_g(true, true);
+    djk_g.addNode('s');
+    djk_g.addNode('v');
+    djk_g.addNode('w');
+    djk_g.addNode('t');
 
-    // djk_g.addEdge(0, 1, 1);
-    // djk_g.addEdge(0, 2, 4);
-    // djk_g.addEdge(1, 2, 2);
-    // djk_g.addEdge(1, 3, 6);
-    // djk_g.addEdge(2, 3, 3);
+    djk_g.addEdge(0, 1, 1);
+    djk_g.addEdge(0, 2, 4);
+    djk_g.addEdge(1, 2, 2);
+    djk_g.addEdge(1, 3, 6);
+    djk_g.addEdge(2, 3, 3);
 
-    // djk_g.printAdjList();
+    djk_g.printAdjList();
 
-    // printVector(djk_g.dijkstra(0));
+    printVector(djk_g.dijkstra(0));
+    return 0;
 
+#endif
+
+#ifdef GTEST_ENABLED
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
-
-    return 0;
+#endif
 }

@@ -1,13 +1,15 @@
 #ifndef GRAPH_H
 #define GRAPH_H
 
-#include"node.h"
 #include<tuple>
 #include<limits.h>
 #include<unordered_map>
 #include<unordered_set>
 #include<queue>
 #include<stack>
+#include<algorithm>
+#include"node.h"
+#include"heap.h"
 
 // will use adjacency lists (not matrix)
 template <typename T> 
@@ -342,47 +344,28 @@ Graph<T> Graph<T>::reversedGraph() {
 // returns shortest path from some vertex s
 template <typename T>
 std::vector<int> Graph<T>::dijkstra(int s) {
-    std::vector<int> lens(vertices.size(), INT_MAX);                  // results; unconnected vertices will not be processed
-    std::unordered_set<int> set{};                                    // lookup vertices in X 
-    std::vector<std::tuple<int,int>> localEdges{};
-    bool edgesLeft{true};
+    std::vector<int> lens(vertices.size(), INT_MAX);            // results; unconnected vertices will not be processed
+    std::unordered_set<int> set{};                              // lookup vertices in X 
+    Heap<Node<T>*> heap{};                     // heap to retrieve min distance
 
     lens[s] = 0;
-    set.insert(s);
+    for (int i = 0; i < vertices.size(); i++) {
+        heap.insert(lens[i], vertices[i]);
+    }
     
-    int v = s;
-    while(true) {
-
-        for(auto it = adjList[v].begin(); it != adjList[v].end(); it++) {
-            if (set.find(it->first) == set.end()) { // not processed in X yet
-                // set up d-score list
-                localEdges.push_back(std::make_tuple(it->first, lens[v] + it->second));
+    while(!heap.isEmpty()) {
+        std::tuple<int,Node<T>*> w = heap.extractTop();
+        int w_edge = std::get<0>(w);
+        int w_id = std::get<1>(w)->getID();
+        set.insert(w_id);            // ID of vertex
+        for(auto& pair : adjList[w_id]) { // for each connecting edge to w* to neighbor vertex 'y', update
+            if(set.find(pair.first) == set.end()) {
+                heap.remove(vertices[pair.first]);
+                int newlen = std::min(lens[pair.first], lens[w_id] + pair.second);
+                lens[pair.first] = newlen;
+                heap.insert(newlen, vertices[pair.first]);
             }
         }
-
-        // find smallest, include w* into X, remove/ignore other d-score edges pointing to w*
-        // this is where we add heap
-        int minScoreVertex{-1};
-        int minScore{INT_MAX};
-
-        for(int i = 0; i < localEdges.size(); i++) {
-            // ignore those not in X (very inefficent)
-            if(set.find(std::get<0>(localEdges[i])) == set.end() && std::get<1>(localEdges[i]) < minScore) {
-                minScore = std::get<1>(localEdges[i]);
-                minScoreVertex = std::get<0>(localEdges[i]);
-
-            }
-        }
-
-        if (minScoreVertex < 0) {
-            break;
-        }
-
-        lens[minScoreVertex] = minScore;
-        set.insert(minScoreVertex); // add into set X
-        // if(indexToRemove > -1)
-        // // localEdges.erase(localEdges.begin() + indexToRemove); // erase from localEdges
-        v = minScoreVertex;
     }
 
     return lens;

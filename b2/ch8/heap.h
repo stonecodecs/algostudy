@@ -9,8 +9,9 @@
 template <typename T>
 class Heap {
     private:
-        std::vector<std::tuple<int, T>> heap;       // <key, object>
-        std::unordered_map<int, std::unordered_set<int>> keyIndexMap;   // <key, index>
+        std::vector<std::tuple<int, T>> heap;       // <key, object_ptr>
+        // std::unordered_map<int, std::unordered_set<int>> keyIndexMap;   // <key, index>
+        std::unordered_map<T, int> map;   // <obj_ptr, index>
         bool minHeap; // true==minHeap, false==maxHeap
         int bubbleDown(int s);
         int bubbleUp(int s);
@@ -19,15 +20,15 @@ class Heap {
         int getLchild(int s);
         int getRchild(int s);
         bool swap(int a, int b);
-        int getKey(std::tuple<int, T> a);
-        T getObj(std::tuple<int, T> a);
+        static int getKey(std::tuple<int, T> a);
+        static T getObj(std::tuple<int, T> a);
     public:
         Heap(bool minHeap=true);
-        T extractTop();
-        T findTop();
+        std::tuple<int, T> extractTop(); // ship with key
+        std::tuple<int, T> peekTop();
         void insert(std::tuple<int, T> a);
-        void insert(int key, T object);
-        void remove(int a);
+        void insert(int key, T val);
+        void remove(T key);
         static Heap<T> heapify(const std::vector<std::tuple<int, T>>& input, bool minHeap=true);
         bool isEmpty();
         int size();
@@ -38,7 +39,8 @@ class Heap {
 template <typename T>
 Heap<T>::Heap(bool minHeap) : heap(std::vector<std::tuple<int,T>>()),
                               minHeap(minHeap),
-                              keyIndexMap(std::unordered_map<int, std::unordered_set<int>>()) {}
+                              map(std::unordered_map<T, int>()) {}
+
 
 template <typename T>
 bool Heap<T>::isEmpty() { return (heap.size() > 0) ? false : true; }
@@ -76,41 +78,41 @@ bool Heap<T>::swap(int a, int b) { // a and b being indices
     if (a > n || b > n || a < 0 || b < 0) { return false; }
 
     // swap indices in hashset in overall hashmap
-    int key_a{getKey(heap[a])};
-    int key_b{getKey(heap[b])};
-    keyIndexMap[key_a].erase(a);
-    keyIndexMap[key_b].erase(b);
-    keyIndexMap[key_a].insert(b);
-    keyIndexMap[key_b].insert(a);
+    T key_a{getObj(heap[a])};
+    T key_b{getObj(heap[b])};
+
+    int tempIndex = map[key_a];
+    map[key_a] = map[key_b];
+    map[key_b] = tempIndex;
 
     // swap actual tuples
-    std::tuple<int, T> temp {heap[a]};
+    std::tuple<int, T> temp = heap[a];
     heap[a] = heap[b];
     heap[b] = temp;
     return true;
 }
 
 template <typename T>
-T Heap<T>::extractTop() {
+std::tuple<int, T> Heap<T>::extractTop() {
     if (isEmpty()) { throw std::runtime_error("Heap is empty. Cannot extract."); }
-    T top{findTop()};
-    remove(getKey(heap[0]));
+    std::tuple<int,T> top{peekTop()};
+    remove(getObj(top));
     return top;
 }
 
 template <typename T>
-T Heap<T>::findTop() {
+std::tuple<int, T> Heap<T>::peekTop() {
     if (isEmpty()) { throw std::runtime_error("Heap is empty."); }
-    return getObj(heap[0]);
+    return heap[0];
 }
 
 template <typename T>
 void Heap<T>::insert(std::tuple<int, T> a) { 
     heap.push_back(a);
     int last {size() - 1}; 
-    keyIndexMap[getKey(a)].insert(last);
+    map[getObj(a)] = last; // unordered_set insert
     if (last > 0) {
-        bubbleUp(last); // restore
+        bubbleUp(last); // restore 
     }
 }
 
@@ -119,24 +121,23 @@ void Heap<T>::insert(int key, T obj) {
     insert(std::tuple<int,T>(key, obj));
 }
 
-// remove by key: use hash table
 template <typename T>
-void Heap<T>::remove(int key) {
+void Heap<T>::remove(T key) { // not 'key' but by 'value' (vertex for Graph)
     int last {size() - 1};
     if(last < 0) { return; }
-    if(keyIndexMap[key].empty()) { return; }
+    if(map.find(key) == map.end()) { return; } // not found
 
     // get first index that corresponds to "key"
     int indexToRemove{-1};
-    auto it = keyIndexMap[key].begin();
-    if(it != keyIndexMap[key].end()) {
-        indexToRemove = *it;
+    auto it = map.find(key);
+    if(it != map.end()) {
+        indexToRemove = it->second; // index
     }
 
     // swap with index
     swap(indexToRemove, last);
     heap.erase(heap.begin() + last);
-    keyIndexMap[key].erase(last);
+    map.erase(key);
     bubbleDown(indexToRemove); // restore 
 }
 
@@ -201,7 +202,7 @@ void Heap<T>::printHeap() {
     std::cout << "sizeofheap:" << heap.size() << "\n";
     std::cout << "[";
     for(int i = 0; i < size(); i++) {
-        std::cout << "(" << getKey(heap[i]) << ": " << getObj(heap[i]) << ") ";
+        std::cout << "(" << getKey(heap[i]) << ": " << *getObj(heap[i]) << ") ";
         // may not work for all types T
     }
     std::cout << "]\n";
@@ -210,12 +211,8 @@ void Heap<T>::printHeap() {
 template <typename T>
 void Heap<T>::printHash() {
     std::cout << "[";
-    for (auto it = keyIndexMap.begin(); it != keyIndexMap.end(); ++it) {
-        std::cout << "Key: " << it->first << ", indices: ";
-        // Iterate over the unordered_set for the current key
-        for (const auto& value : it->second) {
-            std::cout << value << " ";
-        }
+    for (auto it = map.begin(); it != map.end(); ++it) {
+        std::cout << "Key: " << it->first << ", index: " << it->second;
 
         std::cout << std::endl;
     }
