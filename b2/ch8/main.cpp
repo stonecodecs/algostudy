@@ -188,6 +188,7 @@ TEST(GraphTests, DijkstraTest) {
     for(int i = 0; i < ans.size(); i++) {
         EXPECT_EQ(ans[i], pred[i]);
     }
+    delete *g2;
 }
 
 
