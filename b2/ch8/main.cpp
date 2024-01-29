@@ -1,7 +1,10 @@
 #include "graph.h"
+#include <chrono>
 #include "heap.h"
 #include "node.h"
 #include <string>
+#include <fstream>
+#include <sstream>
 #include "gtest/gtest.h"
 
 #define GTEST_ENABLED
@@ -27,6 +30,55 @@ void print2DVector(const std::vector<T>& vec) {
     }
     std::cout << "]" << std::endl;
 }
+
+Graph<int>* graphFromFile(const std::string& fileName, bool directed, bool weighted) {
+    Graph<int> *g = new Graph<int>(directed, weighted);
+    std::ifstream file(fileName);
+    std::string str;
+    std::unordered_map<int, std::vector<std::tuple<int, int>>> vertices;
+
+    if(!file.is_open()) {
+        std::cerr << "Error opening file." << '\n'; 
+        delete g;
+        return NULL; 
+    }
+
+    while (std::getline(file,str)) {
+        std::istringstream iss(str);
+        std::string token;
+        int currVertex = 0;
+
+        // gets vertex key
+        if(iss >> token) { // first element is vertex id
+            currVertex = std::stoi(token);
+            vertices[currVertex] = std::vector<std::tuple<int, int>>();
+            g->addNode(currVertex);
+        }
+
+        while(iss >> token) { 
+            int foundAt = token.find(',');
+            if(foundAt != std::string::npos) {
+                int vertex = std::stoi(token.substr(0, foundAt));
+                int weight = std::stoi(token.substr(foundAt + 1));
+                // std::cout << "(" << vertex << ", " << weight << ")\n";
+                vertices[currVertex].push_back(std::make_tuple(vertex, weight));
+            }
+        }
+    }
+
+    file.close();
+
+    // nodes already estabilshed, now edges & weights
+    for(auto it = vertices.begin(); it != vertices.end(); it++) {
+        int v = it->first;
+        for(int i = 0; i < it->second.size(); i++) {
+            std::tuple<int,int> pair = (it->second)[i];
+            g->addEdge(v, std::get<0>(pair), std::get<1>(pair)); // v->w (weight)
+        }
+    }
+    return g;
+}
+
 
 #ifdef GTEST_ENABLED
 
@@ -70,7 +122,38 @@ TEST(HeapTests, HeapRemove) {
     }
 }
 
+TEST(HeapTests, MedianProblemTest) {
+    std::vector<int> inputOrder = {20, 16, 29, 19, 13, 10, 18, 33, 9, 38, 15, 23, 26, 41, 45}; // median is 20
+    Heap<int> maxHeap = Heap<int>(false); // max heap
+    Heap<int> minHeap = Heap<int>(true);  // min heap
+    int imbalance = 0; // negative for maxHeap, positive for minHeap
+
+    for (const int& e : inputOrder) {
+        if (maxHeap.isEmpty() || e <= std::get<0>(maxHeap.peekTop())) {
+            maxHeap.insert(e,e);
+            imbalance--;
+        } else { // all other values belong in minHeap
+            minHeap.insert(e,e);
+            imbalance++;
+        }
+
+        // fix invariant
+        if(imbalance > 1) { // when size of minHeap is 2 more than maxHeap
+            maxHeap.insert(minHeap.extractTop());
+            imbalance = 0;
+        } else if(imbalance < -1) {
+            minHeap.insert(maxHeap.extractTop());
+            imbalance = 0;
+        } else { } // else, nothing
+    }
+    
+    ASSERT_EQ(20, (imbalance > 0) ? std::get<0>(minHeap.peekTop()) : std::get<0>(maxHeap.peekTop()));
+
+}
+
 TEST(GraphTests, DijkstraTest) {
+    const std::string FILENAME = "9_8prob.txt";
+
     Graph<char> djk_g(true, true);
     std::vector<int> expected0 {0,1,3,6};
     std::vector<int> expected1 {INT_MAX,0,2,5};
@@ -79,16 +162,32 @@ TEST(GraphTests, DijkstraTest) {
     djk_g.addNode('w');
     djk_g.addNode('t');
 
-    djk_g.addEdge(0, 1, 1);
-    djk_g.addEdge(0, 2, 4);
-    djk_g.addEdge(1, 2, 2);
-    djk_g.addEdge(1, 3, 6);
-    djk_g.addEdge(2, 3, 3);
+    djk_g.addEdge('s', 'v', 1);
+    djk_g.addEdge('s', 'w', 4);
+    djk_g.addEdge('v', 'w', 2);
+    djk_g.addEdge('v', 't', 6);
+    djk_g.addEdge('w', 't', 3);
 
     ASSERT_EQ(expected0, djk_g.dijkstra(0));
     ASSERT_EQ(expected1, djk_g.dijkstra(1));
 
+    Graph<int> *g = graphFromFile("9_8prob.txt", true, true);
+    std::vector<int> test9_8 = g->dijkstra(0);
+    std::vector<int> ind9_8 = {7,37,59,82,99,115,133,165,188,197};
+    std::vector<int> ans9_8 = {2599, 2610, 2947, 2052, 2367, 2399, 2029, 2442, 2505, 3068};
 
+    for(int i = 0; i < ind9_8.size(); i++) {
+        EXPECT_EQ(ans9_8[i], test9_8[ind9_8[i] - 1]);
+    }
+    delete g;
+
+    Graph<int> *g2 = graphFromFile("test.txt", true, true);
+    std::vector<int> ans  = {0,1,2,3,4,4,3,2};
+    std::vector<int> pred = g2->dijkstra(0);
+    
+    for(int i = 0; i < ans.size(); i++) {
+        EXPECT_EQ(ans[i], pred[i]);
+    }
 }
 
 
@@ -165,21 +264,23 @@ int main(int argc, char** argv) {
     // dg_forSCCs.matrixToGraph(test);
     // print2DVector(test);
 
-    Graph<char> djk_g(true, true);
-    djk_g.addNode('s');
-    djk_g.addNode('v');
-    djk_g.addNode('w');
-    djk_g.addNode('t');
+    // Graph<char> djk_g(true, true);
+    // djk_g.addNode('s');
+    // djk_g.addNode('v');
+    // djk_g.addNode('w');
+    // djk_g.addNode('t');
 
-    djk_g.addEdge(0, 1, 1);
-    djk_g.addEdge(0, 2, 4);
-    djk_g.addEdge(1, 2, 2);
-    djk_g.addEdge(1, 3, 6);
-    djk_g.addEdge(2, 3, 3);
+    // djk_g.addEdge(0, 1, 1);
+    // djk_g.addEdge(0, 2, 4);
+    // djk_g.addEdge(1, 2, 2);
+    // djk_g.addEdge(1, 3, 6);
+    // djk_g.addEdge(2, 3, 3);
 
-    djk_g.printAdjList();
+    // djk_g.printAdjList();
 
-    printVector(djk_g.dijkstra(0));
+    // printVector(djk_g.dijkstra(0));
+
+
     return 0;
 
 #endif

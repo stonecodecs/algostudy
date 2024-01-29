@@ -103,12 +103,12 @@ std::tuple<int, T> Heap<T>::extractTop() {
 template <typename T>
 std::tuple<int, T> Heap<T>::peekTop() {
     if (isEmpty()) { throw std::runtime_error("Heap is empty."); }
-    return heap[0];
+    return minHeap ? heap[0] : std::make_tuple(-std::get<0>(heap[0]), std::get<1>(heap[0]));
 }
 
 template <typename T>
 void Heap<T>::insert(std::tuple<int, T> a) { 
-    heap.push_back(a);
+    heap.push_back(minHeap ? a : std::tuple<int, T>(-std::get<0>(a), std::get<1>(a)));
     int last {size() - 1}; 
     map[getObj(a)] = last; // unordered_set insert
     if (last > 0) {

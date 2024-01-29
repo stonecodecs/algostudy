@@ -15,8 +15,11 @@
 template <typename T> 
 class Graph {
     private:
-        std::vector<Node<T>*> vertices; // real data stored here
-        std::vector<std::unordered_map<int, int>> adjList; // map<ID, weight>
+        std::vector<Node<T>*> vertices; // <index_v, data>
+        std::vector<std::unordered_map<int, int>> adjList; // adjList of <index_v, <index_w, weight>>
+        std::unordered_map<T, int> map; // map<value, index_v>
+        std::queue<int> idq; // when values are removed, assign specific ID to new entry (matches with index)
+        int capacity; // CAPACITY as in size of adjList (counting removed elements)
         bool isDirected;
         bool isWeighted;
         std::vector<int> _bfs( std::vector<bool>& visited,
@@ -33,8 +36,9 @@ class Graph {
         void matrixToGraph(std::vector<std::vector<T>> m);
         void addNode(T val);
         Node<T>* getNode(int id);
-        bool addEdge(int v, int w, int weight=1);
-        bool remEdge(int v, int w);
+        Node<T>* getNodeByVal(T val);
+        bool addEdge(T v, T w, int weight=1);
+        bool remEdge(T v, T w);
         void printAdjList();
 
         // algos:
@@ -53,7 +57,9 @@ template <typename T>
 Graph<T>::Graph(bool directed, bool weighted) 
     : isDirected(directed), isWeighted(weighted),
     vertices(std::vector<Node<T>*>()), 
-    adjList(std::vector<std::unordered_map<int,int>>()) {}
+    adjList(std::vector<std::unordered_map<int,int>>()),
+    idq(std::queue<int>()),
+    capacity(0) {}
 
 
 template <typename T>
@@ -79,9 +85,21 @@ void Graph<T>::matrixToGraph(std::vector<std::vector<T>> m) {
 
 template <typename T>
 void Graph<T>::addNode(T val) {
-    Node<T>* newNode = new Node<T>(val);
-    vertices.push_back(newNode);
-    adjList.push_back(std::unordered_map<int,int>());
+    if(map.find(val) != map.end()) { return; } // node already exists
+    int newID{capacity++}; // ID should match index position on 'vertices' and 'adjList'
+    if(!idq.empty()) { // uses previously deleted nodeIDs
+        newID = idq.front();
+        idq.pop();
+        Node<T>* newNode = new Node<T>(val, newID);
+        vertices.at(newID) = newNode; // replace data @newID
+        // adjList[newID] should be cleared by remove method
+        capacity--;
+    } else {
+        Node<T>* newNode = new Node<T>(val, newID);
+        vertices.push_back(newNode); // replace data @newID
+        adjList.push_back(std::unordered_map<int,int>());
+    }
+    map[val] = newID; // update map; val->newID/index
 }
 
 template <typename T>
@@ -89,26 +107,51 @@ Node<T>* Graph<T>::getNode(int id) {
     return vertices[id];
 }
 
+template <typename T>
+Node<T>* Graph<T>::getNodeByVal(T val) {
+    if(map.find(val) == map.end()) { return NULL; }
+    return vertices[map[val]];
+}
+
 // if v or w don't exist in the adjacency list, returns false
 // otherwise, creates an edge between two existing nodes, returns true
 template <typename T>
-bool Graph<T>::addEdge(int v, int w, int weight) {
-    if ((v >= adjList.size() || w >= adjList.size())
-         || (v < 0 || w < 0)) { return false; }
+bool Graph<T>::addEdge(T v, T w, int weight) {
+    int _v = (map.find(v) != map.end()) ? map[v] : -1; // gets index of values v,w
+    int _w = (map.find(w) != map.end()) ? map[w] : -1;
+    
+    if ((_v >= adjList.size() ||_w >= adjList.size())
+         || (_v < 0 || _w < 0)) { return false; }
 
     // if the same, we assume edge weight 0
-    if (v == w) { return false; }
+    if (_v == _w) { return false; }
 
-    adjList[v][w] = weight;
+    adjList[_v][_w] = weight;
 
-    if (!isDirected && v != w) {
-        adjList[w][v] = weight;
+    if (!isDirected && _v != _w) {
+        adjList[_w][_v] = weight;
     }
     return true;
 }
 
 template <typename T>
-bool Graph<T>::remEdge(int v, int w) {
+bool Graph<T>::remEdge(T v, T w) {
+    int _v = (map.find(v) != map.end()) ? map[v] : -1; // gets index of values v,w
+    int _w = (map.find(w) != map.end()) ? map[w] : -1;
+    
+    if ((_v >= adjList.size() ||_w >= adjList.size())
+         || (_v < 0 || _w < 0)) { return false; }
+
+    if (_v == _w) { return false; }
+    
+    if(adjList[_v].find(_w) != adjList[_v].end()) {
+        adjList[_v].erase(_w);
+        if(!isDirected && _v != w) {
+            adjList[_w].erase(_v); // erase other side
+        }
+        return true;
+    }
+
     return false;
 }
 
@@ -346,24 +389,24 @@ template <typename T>
 std::vector<int> Graph<T>::dijkstra(int s) {
     std::vector<int> lens(vertices.size(), INT_MAX);            // results; unconnected vertices will not be processed
     std::unordered_set<int> set{};                              // lookup vertices in X 
-    Heap<Node<T>*> heap{};                     // heap to retrieve min distance
+    Heap<int> heap{};                                           // heap to retrieve min distance
 
     lens[s] = 0;
     for (int i = 0; i < vertices.size(); i++) {
-        heap.insert(lens[i], vertices[i]);
+        heap.insert(lens[i], vertices[i]->getID());
     }
     
     while(!heap.isEmpty()) {
-        std::tuple<int,Node<T>*> w = heap.extractTop();
+        std::tuple<int,int> w = heap.extractTop();
         int w_edge = std::get<0>(w);
-        int w_id = std::get<1>(w)->getID();
+        int w_id = std::get<1>(w); // vertex INDEX
         set.insert(w_id);            // ID of vertex
         for(auto& pair : adjList[w_id]) { // for each connecting edge to w* to neighbor vertex 'y', update
             if(set.find(pair.first) == set.end()) {
-                heap.remove(vertices[pair.first]);
+                heap.remove((vertices[pair.first])->getID());
                 int newlen = std::min(lens[pair.first], lens[w_id] + pair.second);
                 lens[pair.first] = newlen;
-                heap.insert(newlen, vertices[pair.first]);
+                heap.insert(newlen, (vertices[pair.first])->getID());
             }
         }
     }

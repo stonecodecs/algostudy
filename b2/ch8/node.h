@@ -9,26 +9,18 @@
 template <typename T>
 class Node {
     private:
-        static int nodeCountTotal;
         int uid;
         T data;
     public:
-        Node(T value);
+        // up to the parent model to maintain unique IDs
+        Node(T value, int _id);
         ~Node();
-        static int getNodeCount();
         int getID();
         T getData();
-        
-
 };
 
-template<typename T>
-int Node<T>::nodeCountTotal = 0;
-
 template <typename T>
-Node<T>::Node(T value) : data(value) {
-    uid = nodeCountTotal;
-    nodeCountTotal++;
+Node<T>::Node(T value, int _id) : data(value), uid(_id) {
 }
 
 template <typename T>
@@ -44,11 +36,6 @@ int Node<T>::getID() {
 template <typename T>
 T Node<T>::getData() {
     return data;
-}
-
-template <typename T>
-int Node<T>::getNodeCount() {
-    return nodeCountTotal;
 }
 
 #endif
