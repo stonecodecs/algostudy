@@ -4,12 +4,46 @@
 #include<algorithm>
 #include<string>
 #include<sstream>
+#include<fstream>
 #include<stack>
 #include"b2/ch8/heap.h"
+
+/*
+ * problem: only works on alphabets on a limited set of the ASCII characters
+ * need to re-work for it to work with string instead of 1-element chars (like from 'A' => "AAB")
+*/
 
 typedef std::tuple<std::string, int> af_pair; // tuple of <alphabet, frequency>
 typedef std::tuple<int, af_pair*> heapnode; // tuple of <freq, <alphabet, freq>> where freq is the same
 typedef std::tuple<std::string, std::string> encode_map; // tuple of <alphabet, encoding>
+
+std::tuple<std::vector<std::string>, std::vector<int>> encodingInputFromFile(std::string filename) {
+    std::ifstream inputFile(filename);  
+    if (!inputFile.is_open()) {
+        std::cerr << "Failed to open input file." << std::endl;
+    }
+
+    int numElements;
+    inputFile >> numElements;  // Read the number of elements from the first line
+
+    std::vector<int> elements;
+    int value;
+    for (int i = 0; i < numElements; ++i) {
+        if (!(inputFile >> value)) {
+            std::cerr << "Failed to read element " << i + 1 << " from file." << std::endl;
+        }
+        elements.push_back(value);
+    }
+
+    // Print the read elements
+    std::tuple<std::vector<std::string>, std::vector<int>> alphabet_frequencies{};
+    char currElement{'A'};
+    for (int e : elements) {
+        std::get<0>(alphabet_frequencies).push_back(std::string() + currElement++);
+        std::get<1>(alphabet_frequencies).push_back(e);
+    }
+    return alphabet_frequencies;
+}
 
 std::string groupAlphabets(af_pair a, af_pair b) {
     std::string str_a = std::get<0>(a);
@@ -116,5 +150,12 @@ int main(int argc, char** argv) {
     std::vector<encode_map>* encodingList = huffmanEncoding(alphabet, frequencies);
     printEncodingList(*encodingList);
     delete encodingList;
+
+    std::cout << '\n';
+
+    auto fromFile = encodingInputFromFile("test2.txt");
+    std::vector<encode_map>* encodingList2 = huffmanEncoding(std::get<0>(fromFile), std::get<1>(fromFile));
+    printEncodingList(*encodingList2);
+    delete encodingList2;
     return 0;
 }

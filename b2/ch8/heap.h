@@ -29,6 +29,7 @@ class Heap {
         void insert(std::tuple<int, T> a);
         void insert(int key, T val);
         void remove(T key);
+        void removeByIndex(int index);
         static Heap<T> heapify(const std::vector<std::tuple<int, T>>& input, bool minHeap=true);
         bool isEmpty();
         int size();
@@ -139,6 +140,21 @@ void Heap<T>::remove(T key) { // not 'key' but by 'value' (vertex for Graph)
     heap.erase(heap.begin() + last);
     map.erase(key);
     bubbleDown(indexToRemove); // restore 
+}
+
+template <typename T>
+void Heap<T>::removeByIndex(int i) {
+    int last {size() - 1};
+    if(last < 0) { return; }
+    if(indexAfterRangeCheck(i) < 0) { return; }
+
+
+    // swap with index
+    swap(i, last);
+    heap.erase(heap.begin() + last);
+    auto key = std::get<1>(heap[i]);
+    map.erase(key);
+    bubbleDown(i); // restore 
 }
 
 template <typename T>
