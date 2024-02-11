@@ -6,8 +6,11 @@
 #include<fstream>
 #include<sstream>
 #include<limits>
+#include<algorithm>
+#include<chrono>
 #include"b2/ch8/heap.h"
 #include"b2/ch8/graph.h"
+#include"unionfind.h"
 
 typedef std::tuple<int, int> edge; // vertices<v,w>
 
@@ -128,6 +131,44 @@ std::vector<edge> prim(Graph<int>* g) {
     return mstEdges;
 }
 
+std::vector<std::tuple<int, edge>> getAllEdges(Graph<int>* g) {
+    std::vector<std::tuple<int, edge>> edges{};
+    std::vector<int> vertices = g->getVertices();
+
+    for(const int& v : vertices) {
+        std::unordered_map<int,int> neighborsOf_v= g->getNeighbors(v);
+        for(const auto& neighbor : neighborsOf_v) {
+            std::tuple<int, edge> e = std::make_tuple(neighbor.second, edge(v, neighbor.first));
+            edges.push_back(e);
+        }
+    }
+    return edges;
+}
+
+std::vector<edge> kruskal(Graph<int>* g) {
+    std::vector<edge> mstEdges{};
+    std::vector<std::tuple<int, edge>> allEdgesOf_g{}; // vector of <int: weight, <edge: (v,w)>>
+    UnionFind<int> uf{};
+
+    allEdgesOf_g = getAllEdges(g);
+    // sort in ascending order (in terms of smallest weight)
+    std::sort(allEdgesOf_g.begin(), allEdgesOf_g.end(), [](const auto& l, const auto& r) {
+        return std::get<0>(l) < std::get<0>(r);
+    });
+
+    for(const auto& tup : allEdgesOf_g) {
+        auto [weight, e] = tup; // split on the weight of edge, edge e
+        auto [v,w] = e;         // vertices v,w from edge e
+        if(!uf.sameSet(v,w)) {
+            // no cycle: add edge
+            mstEdges.push_back(e);
+            uf.unionSets(v,w);
+        }
+    }
+
+    return mstEdges;
+}
+
 void printVectorEdges(std::vector<edge> a) {
     for(edge e : a) {
         auto [v,w] = e;
@@ -135,13 +176,27 @@ void printVectorEdges(std::vector<edge> a) {
     }
 }
 
+std::vector<edge> algoRuntime(std::vector<edge>(*func)(Graph<int>*), Graph<int>* g) {
+    auto primStart = std::chrono::high_resolution_clock::now();
+    std::vector<edge> mstEdges = func(g);
+    auto primEnd = std::chrono::high_resolution_clock::now();
+    auto primDuration = std::chrono::duration_cast<std::chrono::microseconds>(primEnd - primStart);
+    std::cout << "\nruntime duration: " << primDuration.count() << "ms \n";
+    return mstEdges;
+}
+
 int main() {
     Graph<int>* g; // undirected, weighted
     g = graphFromFile("test2.txt");
     g->printAdjList();
-    std::vector<edge> mstEdges = prim(g);
+    std::vector<edge> mstEdges = algoRuntime(&prim,g); // runs considerably faster (prob cause dense graph)
     printVectorEdges(mstEdges);
-    std::cout << "mst_score: " << mst_score(g, mstEdges);
+
+    std::vector<edge> mstEdgesKruskal = algoRuntime(&kruskal, g);
+    printVectorEdges(mstEdges);
+    std::cout << "mst_score(prim): " << mst_score(g, mstEdges);
+    std::cout << "mst_score(kruskal): " << mst_score(g, mstEdgesKruskal);
+
     delete g;
     return 0;
 }
